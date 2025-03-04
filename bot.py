@@ -17,7 +17,16 @@ TZ = pytz.timezone('Asia/Shanghai')
 # 从环境变量读取配置
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 S3_BUCKET = os.getenv('S3_BUCKET')
-SUPER_ADMINS = os.getenv("SUPER_ADMINS", "").split()
+# 读取 SUPER_ADMINS
+SUPER_ADMINS_RAW = os.getenv('SUPER_ADMINS', '[]')  # 获取原始值，默认为空列表
+print(f"原始 SUPER_ADMINS 值: {SUPER_ADMINS_RAW}")  # 调试：检查 .env 中的值
+try:
+    SUPER_ADMINS = json.loads(SUPER_ADMINS_RAW)
+    print(f"解析后的 SUPER_ADMINS: {SUPER_ADMINS}")  # 调试：检查解析结果
+except json.JSONDecodeError as e:
+    print(f"错误：SUPER_ADMINS 解析失败，格式错误: {e}")
+    SUPER_ADMINS = []
+
 
 # 检查环境变量是否正确设置
 if not BOT_TOKEN:

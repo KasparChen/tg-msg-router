@@ -9,3 +9,4 @@ venv/
 nohup.out
 .env
 .env.backup
+.DS_Store
