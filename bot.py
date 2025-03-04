@@ -146,46 +146,63 @@ def help_command(message):
     )
     logging.info("Sending help text: %s", help_text)
     try:
-        bot.reply_to(message, help_text, parse_mode='HTML')
+        bot.send_message(message.chat.id, help_text, parse_mode='HTML')
         logging.info("Help message sent successfully")
     except Exception as e:
         logging.error("Failed to send help message: %s", str(e))
     log_event(f"用户 @{message.from_user.username} 执行 /help")
-
+    
 # 命令：/status - 显示当前配置
 @bot.message_handler(commands=['status'])
 def status_command(message):
-    """显示 Bot 当前配置"""
+    """显示 Bot 当前配置，使用 HTML 格式优化显示"""
     username = message.from_user.username
     if not is_admin(username):
-        bot.reply_to(message, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
+        bot.send_message(message.chat.id, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
     config = load_config()
+    
+    # 定义 HTML 转义函数
+    def escape_html(text):
+        """转义 HTML 特殊字符"""
+        text = text.replace('&', '&')
+        text = text.replace('<', '<')
+        text = text.replace('>', '>')
+        return text
+    
     monitor_channel_text = "未设置"
     if config['monitor_channel']:
         try:
             chat = bot.get_chat(config['monitor_channel'])
-            monitor_channel_text = f"{chat.title} ({config['monitor_channel']})"
+            monitor_channel_text = f"{escape_html(chat.title)} ({config['monitor_channel']})"
         except:
             monitor_channel_text = f"未知频道 ({config['monitor_channel']})"
-    keyword_initial_text = ", ".join(config['keyword_initial']) if config['keyword_initial'] else "未设置"
-    keyword_contain_text = ", ".join(config['keyword_contain']) if config['keyword_contain'] else "未设置"
+    
+    keyword_initial_text = ", ".join(
+        escape_html(kw) for kw in config['keyword_initial']
+    ) if config['keyword_initial'] else "未设置"
+    keyword_contain_text = ", ".join(
+        escape_html(kw) for kw in config['keyword_contain']
+    ) if config['keyword_contain'] else "未设置"
+    
     sending_channels_text = []
     for i, channel_id in enumerate(config['sending_channels'], 1):
         try:
             chat = bot.get_chat(channel_id)
-            sending_channels_text.append(f"[{i}] {chat.title} ({channel_id})")
+            sending_channels_text.append(f"[{i}] {escape_html(chat.title)} ({channel_id})")
         except:
             sending_channels_text.append(f"[{i}] 未知频道 ({channel_id})")
-    sending_channels_text = "\n".join(sending_channels_text) if sending_channels_text else "未设置"
+    sending_channels_text = "<br>".join(sending_channels_text) if sending_channels_text else "未设置"
+    
     status_text = (
-        f"<b>当前监控视野:</b>\n{monitor_channel_text}\n\n"
-        f"<b>关键词抓取配置:</b>\n"
-        f"<b>> 句首:</b> {keyword_initial_text}\n"
-        f"<b>> 句中:</b> {keyword_contain_text}\n\n"
-        f"<b>发送频道:</b>\n{sending_channels_text}"
-        )
-    bot.reply_to(message, status_text, parse_mode='HTML')
+        f"<b>当前监控视野:</b><br>{monitor_channel_text}<br><br>"
+        f"<b>关键词抓取配置:</b><br>"
+        f"> 句首: {keyword_initial_text}<br>"
+        f"> 句中: {keyword_contain_text}<br><br>"
+        f"<b>发送频道:</b><br>{sending_channels_text}"
+    )
+    
+    bot.send_message(message.chat.id, status_text, parse_mode='HTML')
     log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 发送频道={sending_channels_text}")
 
 # 命令：/get_group_id - 获取当前群组 ID
@@ -223,39 +240,39 @@ def process_set_monitor_channel(message):
         log_event(f"用户 @{username} 设置监控频道: 从 {old_channel} 变更为 {channel_id}")
     except:
         bot.reply_to(message, "无效的频道 ID，请确保输入正确并确保 Bot 有权限访问该频道！")
-
+        
 # 命令：/set_keyword_initial - 设置开头关键词（第一步）
 @bot.message_handler(commands=['set_keyword_initial'])
 def set_keyword_initial_command(message):
     """提示用户提供开头关键词"""
     username = message.from_user.username
     if not is_admin(username):
-        bot.reply_to(message, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
+        bot.send_message(message.chat.id, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
-    bot.reply_to(message, "请提供开头关键词（用逗号分隔多个，例如 alpha, breaking, just in）")
+    bot.send_message(message.chat.id, "请提供开头关键词（用逗号分隔多个，例如 alpha, breaking, just in）")
     bot.register_next_step_handler(message, process_set_keyword_initial)
 
 def process_set_keyword_initial(message):
     """处理用户输入的开头关键词，覆盖旧配置或清空列表"""
     username = message.from_user.username
     input_text = message.text.strip()  # 去除首尾空格
-    if not input_text or input_text.isspace():  # 如果只输入空格或空
+    if input_text == '.-.':  # 清空条件改为 .-.
         config = load_config()
         config['keyword_initial'] = []  # 清空列表，恢复默认
         save_config(config)
-        bot.reply_to(message, "开头关键词已清空，恢复默认设置")
+        bot.send_message(message.chat.id, "开头关键词已清空，恢复默认设置")
         logging.info(f"配置更新 - 用户 @{username} 清空开头关键词")
         log_event(f"用户 @{username} 清空开头关键词")
         return
     
     keywords = [kw.strip() for kw in input_text.split(',')]
     if len(keywords) > 5:
-        bot.reply_to(message, "开头关键词数量不能超过 5 个！")
+        bot.send_message(message.chat.id, "开头关键词数量不能超过 5 个！")
         return
     config = load_config()
     config['keyword_initial'] = keywords
     save_config(config)
-    bot.reply_to(message, f"开头关键词已设置为: {', '.join(keywords)}")
+    bot.send_message(message.chat.id, f"开头关键词已设置为: {', '.join(keywords)}")
     logging.info(f"配置更新 - 用户 @{username} 设置开头关键词: {keywords}")
     log_event(f"用户 @{username} 设置开头关键词: {keywords}")
 
@@ -265,32 +282,32 @@ def set_keyword_contain_command(message):
     """提示用户提供包含关键词"""
     username = message.from_user.username
     if not is_admin(username):
-        bot.reply_to(message, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
+        bot.send_message(message.chat.id, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
-    bot.reply_to(message, "请提供包含关键词（用逗号分隔多个，例如 CA, news, update）")
+    bot.send_message(message.chat.id, "请提供包含关键词（用逗号分隔多个，例如 CA, news, update）")
     bot.register_next_step_handler(message, process_set_keyword_contain)
 
 def process_set_keyword_contain(message):
     """处理用户输入的包含关键词，覆盖旧配置或清空列表"""
     username = message.from_user.username
     input_text = message.text.strip()  # 去除首尾空格
-    if not input_text or input_text.isspace():  # 如果只输入空格或空
+    if input_text == '.-.':  # 清空条件改为 .-.
         config = load_config()
         config['keyword_contain'] = []  # 清空列表，恢复默认
         save_config(config)
-        bot.reply_to(message, "包含关键词已清空，恢复默认设置")
+        bot.send_message(message.chat.id, "包含关键词已清空，恢复默认设置")
         logging.info(f"配置更新 - 用户 @{username} 清空包含关键词")
         log_event(f"用户 @{username} 清空包含关键词")
         return
     
     keywords = [kw.strip() for kw in input_text.split(',')]
     if len(keywords) > 5:
-        bot.reply_to(message, "包含关键词数量不能超过 5 个！")
+        bot.send_message(message.chat.id, "包含关键词数量不能超过 5 个！")
         return
     config = load_config()
     config['keyword_contain'] = keywords
     save_config(config)
-    bot.reply_to(message, f"包含关键词已设置为: {', '.join(keywords)}")
+    bot.send_message(message.chat.id, f"包含关键词已设置为: {', '.join(keywords)}")
     logging.info(f"配置更新 - 用户 @{username} 设置包含关键词: {keywords}")
     log_event(f"用户 @{username} 设置包含关键词: {keywords}")
 
