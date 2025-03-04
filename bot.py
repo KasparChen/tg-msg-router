@@ -12,16 +12,6 @@ import logging
 # 设置中国时区（UTC+8）
 TZ = pytz.timezone('Asia/Shanghai')
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/var/log/msg-router-bot.log'),
-        logging.StreamHandler()
-    ]
-)
-
 # 加载 .env 文件
 load_dotenv()
 
