@@ -128,21 +128,20 @@ def is_admin(username):
 @bot.message_handler(commands=['help'])
 def help_command(message):
     """发送 Bot 使用指南"""
-    help_text = """
-    MSG Router 是一个消息转发 Bot，能够监听指定 Channel 中包含特定关键词的消息，并转发至指定的 Channel/Group。
-    关键词无视大小写。
-    
-    使用指南：
-    /help - 显示这个指南
-    /status - 查看当前Bot配置
-    /get_group_id - 获取当前群组的ID（无需权限）
-    /set_monitor_channel - 设置要监控的频道 ID (目前只支持1个)
-    /set_keyword_initial - 设置抓取的句首关键词（用逗号分隔多个, Max.5）
-    /set_keyword_contain - 设置抓取的句中关键词（用逗号分隔多个, Max.5）
-    /set_sending_channel - 设置发送频道的 ID （用逗号分隔多个, Max.3）
-    /add_admin - 添加管理员
-    /rm_admin - 移除管理员
-    """
+    help_text = (
+        "**MSG Router** 是一个消息处理 Bot，能够监听指定 Channel 中包含特定关键词的消息，并将其完整复制发送至指定的 Channel/Group。\n"
+        "关键词匹配无视大小写。\n\n"
+        "**使用指南：**\n"
+        "`/help` - 显示这个指南\n"
+        "`/status` - 查看当前 Bot 配置\n"
+        "`/get_group_id` - 获取当前群组的 ID（无需权限）\n"
+        "`/set_monitor_channel` - 设置要监控的频道 ID（目前只支持 1 个）\n"
+        "`/set_keyword_initial` - 设置抓取的句首关键词（用逗号分隔多个，最多 5 个）\n"
+        "`/set_keyword_contain` - 设置抓取的句中关键词（用逗号分隔多个，最多 5 个）\n"
+        "`/set_sending_channel` - 设置发送频道的 ID（最多 3 个）\n"
+        "`/add_admin` - 添加管理员\n"
+        "`/rm_admin` - 移除管理员"
+        )
     bot.reply_to(message, help_text)
     log_event(f"用户 @{message.from_user.username} 执行 /help")
 
@@ -172,20 +171,13 @@ def status_command(message):
         except:
             sending_channels_text.append(f"[{i}] 未知频道 ({channel_id})")
     sending_channels_text = "\n".join(sending_channels_text) if sending_channels_text else "未设置"
-    status_text = f"""
-    
-    当前监控视野:
-    {monitor_channel_text}
-
-    关键词抓取配置:
-    > 句首: 
-    {keyword_initial_text}
-    > 句中: 
-    {keyword_contain_text}
-
-    发送频道:
-    {sending_channels_text}
-    """
+    status_text = (
+        f"**当前监控视野:**\n{monitor_channel_text}\n\n"
+        f"**关键词抓取配置:**\n"
+        f"**> 句首:** {keyword_initial_text}\n"
+        f"**> 句中:** {keyword_contain_text}\n\n"
+        f"**发送频道:**\n{sending_channels_text}"
+        )
     bot.reply_to(message, status_text)
     log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 发送频道={sending_channels_text}")
 
