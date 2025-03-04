@@ -17,7 +17,7 @@ TZ = pytz.timezone('Asia/Shanghai')
 # 从环境变量读取配置
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 S3_BUCKET = os.getenv('S3_BUCKET')
-SUPER_ADMINS = json.loads(os.getenv('SUPER_ADMINS', '[]'))
+SUPER_ADMINS = os.getenv("SUPER_ADMINS", "").split()
 
 # 检查环境变量是否正确设置
 if not BOT_TOKEN:
