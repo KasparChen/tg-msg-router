@@ -174,14 +174,14 @@ def status_command(message):
     sending_channels_text = "\n".join(f"[{i}] {escape_markdown(bot.get_chat(cid).title)} ({cid})" for i, cid in enumerate(config['sending_channels'], 1)) if config['sending_channels'] else "未设置"
 
     status_text = (
-        "*当前监控视野*:\n"
+        f"*当前监控视野*:\n"
         f"{monitor_channel_text} \n\n"
-        "*关键词抓取配置*: \n"
-        "> *句首*:"
+        f"*关键词抓取配置*: \n"
+        f"> *句首*:"
         f"{keyword_initial_text}\n"
-        "> *句中*:"
+        f"> *句中*:"
         f"{keyword_contain_text}_\n\n"
-        "*发送频道*:\n"
+        f"*发送频道*:\n"
         f"{sending_channels_text}"
     )
     try:
