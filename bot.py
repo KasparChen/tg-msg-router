@@ -133,7 +133,7 @@ def is_admin(username):
 # 转义 Markdown 特殊字符
 def escape_markdown(text):
     """转义 Markdown 特殊字符，确保文本按原样展示"""
-    chars_to_escape = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    chars_to_escape = ['_', '*', '[', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
     for char in chars_to_escape:
         text = text.replace(char, f'\\{char}')
     return text
@@ -142,18 +142,18 @@ def escape_markdown(text):
 @bot.message_handler(commands=['help'])
 def help_command(message):
     help_text = (
-        "*MSG Router* 是一个消息处理 Bot，能够监听指定 Channel 中包含特定关键词的消息，并将其完整复制发送至指定的 Channel/Group。  \n"
-        "关键词匹配无视大小写。  \n\n"
-        "*使用指南：*  \n"
-        "- /help - 显示这个指南  \n"
-        "- /status - 查看当前 Bot 配置  \n"
-        "- /get_group_id - 获取当前群组的 ID（无需权限）  \n"
-        "- /set_monitor_channel - 设置要监控的频道 ID（目前只支持 1 个）  \n"
-        "- /set_keyword_initial - 设置抓取的句首关键词（用逗号分隔多个，最多 5 个）  \n"
-        "- /set_keyword_contain - 设置抓取的句中关键词（用逗号分隔多个，最多 5 个）  \n"
-        "- /set_sending_channel - 设置发送频道的 ID（最多 3 个）  \n"
-        "- /add_admin - 添加管理员  \n"
-        "- /rm_admin - 移除管理员"
+        "*MSG Router* 是一个消息处理 Bot，能够监听指定 Channel 中包含特定关键词的消息，并将其完整复制发送至指定的 Channel/Group。\n"
+        "_关键词匹配无视大小写_。\n\n"
+        "*使用指南*:  \n"
+        "- `/help` - 显示这个指南  \n"
+        "- `/status` - 查看当前 Bot 配置  \n"
+        "- `/get_group_id` - 获取当前群组的 ID（无需权限）  \n"
+        "- `/set_monitor_channel` - 设置要监控的频道 ID（目前只支持 1 个）  \n"
+        "- `/set_keyword_initial` - 设置抓取的句首关键词（用逗号分隔多个，最多 5 个）  \n"
+        "- `/set_keyword_contain` - 设置抓取的句中关键词（用逗号分隔多个，最多 5 个）  \n"
+        "- `/set_sending_channel` - 设置发送频道的 ID（最多 3 个）  \n"
+        "- `/add_admin` - 添加管理员  \n"
+        "- `/rm_admin` - 移除管理员"
     )
     try:
         bot.send_message(message.chat.id, help_text, parse_mode='Markdown')
@@ -229,7 +229,7 @@ def set_keyword_initial_command(message):
     if not is_admin(username):
         bot.send_message(message.chat.id, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
-    bot.send_message(message.chat.id, "请提供开头关键词（用逗号分隔多个，例如 alpha, breaking, just in）")
+    bot.send_message(message.chat.id, "请提供开头关键词（用逗号分隔多个，例如 alpha, breaking, just in）\n输入`.-.` 恢复默认")
     bot.register_next_step_handler(message, process_set_keyword_initial)
 
 def process_set_keyword_initial(message):
@@ -264,7 +264,7 @@ def set_keyword_contain_command(message):
     if not is_admin(username):
         bot.send_message(message.chat.id, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
-    bot.send_message(message.chat.id, "请提供包含关键词（用逗号分隔多个，例如 CA, news, update）")
+    bot.send_message(message.chat.id, "请提供包含关键词（用逗号分隔多个，例如 CA, news, update）\n输入`.-.` 恢复默认")
     bot.register_next_step_handler(message, process_set_keyword_contain)
 
 def process_set_keyword_contain(message):
