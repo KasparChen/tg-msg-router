@@ -81,26 +81,28 @@ def log_event(event):
         content = log_entry
     s3.put_object(Bucket=S3_BUCKET, Key=log_key, Body=content.encode('utf-8'))
 
-# 清理超过三天的日志
+# 清理日志条数
 def clean_old_logs():
-    """清理三天前的日志文件"""
+    """每天检查日志条数，若超过 500 条，只保留最近 500 条"""
     now = datetime.now(TZ)
-    cutoff_date = now - timedelta(days=3)
-    paginator = s3.get_paginator('list_objects_v2')
-    for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=LOG_PREFIX):
-        for obj in page.get('Contents', []):
-            log_date_str = obj['Key'].split('/')[-1].replace('.log', '')
-            try:
-                log_date = datetime.strptime(log_date_str, '%Y-%m-%d').replace(tzinfo=TZ)
-                if log_date < cutoff_date:
-                    s3.delete_object(Bucket=S3_BUCKET, Key=obj['Key'])
-                    log_event(f"清理日志文件: {obj['Key']}")
-            except ValueError:
-                continue
+    log_key = f"{LOG_PREFIX}{now.strftime('%Y-%m-%d')}.log"
+    try:
+        # 获取当前日志文件内容
+        obj = s3.get_object(Bucket=S3_BUCKET, Key=log_key)
+        content = obj['Body'].read().decode('utf-8')
+        log_lines = content.splitlines()  # 按行分割日志
+        if len(log_lines) > 500:  # 如果超过 500 条
+            # 只保留最近 500 条
+            new_content = '\n'.join(log_lines[-500:]) + '\n'
+            s3.put_object(Bucket=S3_BUCKET, Key=log_key, Body=new_content.encode('utf-8'))
+            log_event(f"清理日志: {log_key} 从 {len(log_lines)} 条缩减至 500 条")
+    except s3.exceptions.NoSuchKey:
+        # 如果当天还没有日志文件，无需清理
+        pass
 
 # 日志清理线程
 def log_cleanup_thread():
-    """每分钟检查一次，0 点清理旧日志"""
+    """每分钟检查一次，如果是 0 点则清理日志条数"""
     last_cleanup_date = None
     while True:
         now = datetime.now(TZ)
@@ -108,7 +110,7 @@ def log_cleanup_thread():
         if last_cleanup_date != current_date and now.hour == 0 and now.minute == 0:
             clean_old_logs()
             last_cleanup_date = current_date
-        time.sleep(60)
+        time.sleep(60)  # 每分钟检查一次
 
 # 检查用户是否为管理员
 def is_admin(username):
@@ -127,14 +129,17 @@ def is_admin(username):
 def help_command(message):
     """发送 Bot 使用指南"""
     help_text = """
+    MSG Router 是一个消息转发 Bot，能够监听指定 Channel 中包含特定关键词的消息，并转发至指定的 Channel/Group。
+    关键词无视大小写。
+    
     使用指南：
     /help - 显示这个指南
     /status - 查看当前Bot配置
     /get_group_id - 获取当前群组的ID（无需权限）
-    /set_monitor_channel - 设置要监控的频道
-    /set_keyword_initial - 设置开头关键词
-    /set_keyword_contain - 设置包含关键词
-    /set_sending_channel - 设置转发目标
+    /set_monitor_channel - 设置要监控的频道 ID (目前只支持1个)
+    /set_keyword_initial - 设置抓取的句首关键词（用逗号分隔多个, Max.5）
+    /set_keyword_contain - 设置抓取的句中关键词（用逗号分隔多个, Max.5）
+    /set_sending_channel - 设置发送频道的 ID （用逗号分隔多个, Max.3）
     /add_admin - 添加管理员
     /rm_admin - 移除管理员
     """
@@ -168,18 +173,21 @@ def status_command(message):
             sending_channels_text.append(f"[{i}] 未知频道 ({channel_id})")
     sending_channels_text = "\n".join(sending_channels_text) if sending_channels_text else "未设置"
     status_text = f"""
+    
     当前监控视野:
     {monitor_channel_text}
 
     关键词抓取配置:
-    > 句首: {keyword_initial_text}
-    > 句中: {keyword_contain_text}
+    > 句首: 
+    {keyword_initial_text}
+    > 句中: 
+    {keyword_contain_text}
 
-    转发频道:
+    发送频道:
     {sending_channels_text}
     """
     bot.reply_to(message, status_text)
-    log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 转发频道={sending_channels_text}")
+    log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 发送频道={sending_channels_text}")
 
 # 命令：/get_group_id - 获取当前群组 ID
 @bot.message_handler(commands=['get_group_id'])
@@ -187,7 +195,7 @@ def get_group_id_command(message):
     """返回当前群组或频道 ID"""
     group_id = message.chat.id
     username = message.from_user.username
-    bot.reply_to(message, f"当前群组的ID是: {group_id}, 你的用户名是: @{username}")
+    bot.reply_to(message, f"当前群组的ID是: {group_id}")
     log_event(f"用户 @{username} 获取群组ID: {group_id}")
 
 # 命令：/set_monitor_channel - 设置监控频道（第一步）
@@ -206,7 +214,6 @@ def process_set_monitor_channel(message):
     username = message.from_user.username
     channel_id = message.text.strip()
     try:
-        # 尝试获取频道信息以验证 ID
         chat = bot.get_chat(channel_id)
         config = load_config()
         old_channel = config['monitor_channel']
@@ -226,22 +233,22 @@ def set_keyword_initial_command(message):
     if not is_admin(username):
         bot.reply_to(message, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
-    bot.reply_to(message, "请提供要添加的开头关键词（例如 [Alpha]）")
+    bot.reply_to(message, "请提供开头关键词（用逗号分隔多个，例如 alpha, breaking, just in）")
     bot.register_next_step_handler(message, process_set_keyword_initial)
 
 def process_set_keyword_initial(message):
-    """处理用户输入的开头关键词"""
+    """处理用户输入的开头关键词，覆盖旧配置"""
     username = message.from_user.username
-    keyword = message.text.strip()
+    keywords = [kw.strip() for kw in message.text.split(',')]
+    if len(keywords) > 5:
+        bot.reply_to(message, "开头关键词数量不能超过 5 个！")
+        return
     config = load_config()
-    if len(config['keyword_initial']) < 5:
-        config['keyword_initial'].append(keyword)
-        save_config(config)
-        bot.reply_to(message, f"开头关键词 {keyword} 已添加")
-        print(f"配置更新 - 用户 @{username} 添加开头关键词: {keyword}")
-        log_event(f"用户 @{username} 添加开头关键词: {keyword}, 当前句首关键词列表: {config['keyword_initial']}")
-    else:
-        bot.reply_to(message, "开头关键词数量已达上限（5个）！")
+    config['keyword_initial'] = keywords
+    save_config(config)
+    bot.reply_to(message, f"开头关键词已设置为: {', '.join(keywords)}")
+    print(f"配置更新 - 用户 @{username} 设置开头关键词: {keywords}")
+    log_event(f"用户 @{username} 设置开头关键词: {keywords}")
 
 # 命令：/set_keyword_contain - 设置包含关键词（第一步）
 @bot.message_handler(commands=['set_keyword_contain'])
@@ -251,36 +258,36 @@ def set_keyword_contain_command(message):
     if not is_admin(username):
         bot.reply_to(message, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
-    bot.reply_to(message, "请提供要添加的包含关键词（例如 CA）")
+    bot.reply_to(message, "请提供包含关键词（用逗号分隔多个，例如 CA, news, update）")
     bot.register_next_step_handler(message, process_set_keyword_contain)
 
 def process_set_keyword_contain(message):
-    """处理用户输入的包含关键词"""
+    """处理用户输入的包含关键词，覆盖旧配置"""
     username = message.from_user.username
-    keyword = message.text.strip()
+    keywords = [kw.strip() for kw in message.text.split(',')]
+    if len(keywords) > 5:
+        bot.reply_to(message, "包含关键词数量不能超过 5 个！")
+        return
     config = load_config()
-    if len(config['keyword_contain']) < 5:
-        config['keyword_contain'].append(keyword)
-        save_config(config)
-        bot.reply_to(message, f"包含关键词 {keyword} 已添加")
-        print(f"配置更新 - 用户 @{username} 添加包含关键词: {keyword}")
-        log_event(f"用户 @{username} 添加包含关键词: {keyword}, 当前句中关键词列表: {config['keyword_contain']}")
-    else:
-        bot.reply_to(message, "包含关键词数量已达上限（5个）！")
+    config['keyword_contain'] = keywords
+    save_config(config)
+    bot.reply_to(message, f"包含关键词已设置为: {', '.join(keywords)}")
+    print(f"配置更新 - 用户 @{username} 设置包含关键词: {keywords}")
+    log_event(f"用户 @{username} 设置包含关键词: {keywords}")
 
-# 命令：/set_sending_channel - 设置转发目标（第一步）
+# 命令：/set_sending_channel - 设置发送目标（第一步）
 @bot.message_handler(commands=['set_sending_channel'])
 def set_sending_channel_command(message):
-    """提示用户提供转发目标频道 ID"""
+    """提示用户提供发送目标频道 ID"""
     username = message.from_user.username
     if not is_admin(username):
         bot.reply_to(message, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
-    bot.reply_to(message, "请提供要添加的转发目标频道 ID（例如 -100987654321）")
+    bot.reply_to(message, "请提供要添加的发送目标频道 ID\n（例如 -100987654321）")
     bot.register_next_step_handler(message, process_set_sending_channel)
 
 def process_set_sending_channel(message):
-    """处理用户输入的转发目标频道 ID"""
+    """处理用户输入的发送目标频道 ID"""
     username = message.from_user.username
     channel_id = message.text.strip()
     try:
@@ -289,11 +296,11 @@ def process_set_sending_channel(message):
         if len(config['sending_channels']) < 3:
             config['sending_channels'].append(channel_id)
             save_config(config)
-            bot.reply_to(message, f"{chat.title} ({channel_id}) 已添加为转发目标")
-            print(f"配置更新 - 用户 @{username} 添加转发目标: {channel_id}")
-            log_event(f"用户 @{username} 添加转发目标: {channel_id}, 当前转发频道列表: {config['sending_channels']}")
+            bot.reply_to(message, f"{chat.title} ({channel_id}) 已添加为发送目标")
+            print(f"配置更新 - 用户 @{username} 添加发送目标: {channel_id}")
+            log_event(f"用户 @{username} 添加发送目标: {channel_id}, 当前发送频道列表: {config['sending_channels']}")
         else:
-            bot.reply_to(message, "转发目标数量已达上限（3个）！")
+            bot.reply_to(message, "发送目标数量已达上限（3个）！")
     except:
         bot.reply_to(message, "无效的频道 ID，请确保输入正确并确保 Bot 有权限访问该频道！")
 
@@ -358,10 +365,10 @@ def process_rm_admin(message):
     except ValueError:
         bot.reply_to(message, "请提供有效的编号，例如: 1")
 
-# 监听频道消息并转发
+# 监听频道消息并复制发送
 @bot.channel_post_handler(func=lambda message: True)
 def handle_channel_post(message):
-    """监听频道消息，根据关键词转发"""
+    """监听频道消息，复制内容并发送，不转发"""
     config = load_config()
     if str(message.chat.id) != config['monitor_channel']:
         return
@@ -372,28 +379,29 @@ def handle_channel_post(message):
 
     if not keyword_initial and not keyword_contain:
         for channel in sending_channels:
-            bot.forward_message(channel, message.chat.id, message.message_id)
-        log_event(f"转发消息 {message.message_id} 从 {message.chat.id} 到 {sending_channels}（无关键词，默认转发）")
+            bot.send_message(channel, text)
+        log_event(f"复制消息 {message.message_id} 从 {message.chat.id} 到 {sending_channels}（无关键词，默认复制）")
         return
 
-    should_forward = False
+    text_lower = text.lower()
+    should_send = False
     matched_keyword = None
     for keyword in keyword_initial:
-        if text.startswith(keyword):
-            should_forward = True
+        if text_lower.startswith(keyword.lower()):
+            should_send = True
             matched_keyword = keyword
             break
-    if not should_forward:
+    if not should_send:
         for keyword in keyword_contain:
-            if keyword in text:
-                should_forward = True
+            if keyword.lower() in text_lower:
+                should_send = True
                 matched_keyword = keyword
                 break
 
-    if should_forward:
+    if should_send:
         for channel in sending_channels:
-            bot.forward_message(channel, message.chat.id, message.message_id)
-        log_event(f"转发消息 {message.message_id} 从 {message.chat.id} 到 {sending_channels}（匹配关键词: {matched_keyword}）")
+            bot.send_message(channel, text)
+        log_event(f"复制消息 {message.message_id} 从 {message.chat.id} 到 {sending_channels}（匹配关键词: {matched_keyword}）")
 
 # 主程序入口
 if __name__ == '__main__':
