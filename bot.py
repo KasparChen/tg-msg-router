@@ -125,10 +125,10 @@ def is_admin(username):
     super_admins = [x.lower() for x in SUPER_ADMINS]
     return username in admins or username in super_admins
 
-# 命令：/help - 显示使用指南
 @bot.message_handler(commands=['help'])
 def help_command(message):
-    """发送 Bot 使用指南"""
+    """发送 Bot 使用指南，使用 HTML 格式"""
+    logging.info("Received /help command from user: @%s", message.from_user.username)
     help_text = (
         "<b>MSG Router</b> 是一个消息处理 Bot，能够监听指定 Channel 中包含特定关键词的消息，并将其完整复制发送至指定的 Channel/Group。<br>"
         "关键词匹配无视大小写。<br><br>"
@@ -142,9 +142,9 @@ def help_command(message):
         "<b>/set_sending_channel</b> - 设置发送频道的 ID（最多 3 个）<br>"
         "<b>/add_admin</b> - 添加管理员<br>"
         "<b>/rm_admin</b> - 移除管理员"
-        )
+    )
     bot.reply_to(message, help_text, parse_mode='HTML')
-    # log_event(f"用户 @{message.from_user.username} 执行 /help")
+    log_event(f"用户 @{message.from_user.username} 执行 /help")
 
 # 命令：/status - 显示当前配置
 @bot.message_handler(commands=['status'])
@@ -180,7 +180,7 @@ def status_command(message):
         f"<b>发送频道:</b>\n{sending_channels_text}"
         )
     bot.reply_to(message, status_text, parse_mode='HTML')
-    # log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 发送频道={sending_channels_text}")
+    log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 发送频道={sending_channels_text}")
 
 # 命令：/get_group_id - 获取当前群组 ID
 @bot.message_handler(commands=['get_group_id'])
