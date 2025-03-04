@@ -125,6 +125,7 @@ def is_admin(username):
     super_admins = [x.lower() for x in SUPER_ADMINS]
     return username in admins or username in super_admins
 
+# 命令：/help - 显示使用指南
 @bot.message_handler(commands=['help'])
 def help_command(message):
     """发送 Bot 使用指南，使用 HTML 格式"""
@@ -143,7 +144,12 @@ def help_command(message):
         "<b>/add_admin</b> - 添加管理员<br>"
         "<b>/rm_admin</b> - 移除管理员"
     )
-    bot.reply_to(message, help_text, parse_mode='HTML')
+    logging.info("Sending help text: %s", help_text)
+    try:
+        bot.reply_to(message, help_text, parse_mode='HTML')
+        logging.info("Help message sent successfully")
+    except Exception as e:
+        logging.error("Failed to send help message: %s", str(e))
     log_event(f"用户 @{message.from_user.username} 执行 /help")
 
 # 命令：/status - 显示当前配置
@@ -230,9 +236,19 @@ def set_keyword_initial_command(message):
     bot.register_next_step_handler(message, process_set_keyword_initial)
 
 def process_set_keyword_initial(message):
-    """处理用户输入的开头关键词，覆盖旧配置"""
+    """处理用户输入的开头关键词，覆盖旧配置或清空列表"""
     username = message.from_user.username
-    keywords = [kw.strip() for kw in message.text.split(',')]
+    input_text = message.text.strip()  # 去除首尾空格
+    if not input_text or input_text.isspace():  # 如果只输入空格或空
+        config = load_config()
+        config['keyword_initial'] = []  # 清空列表，恢复默认
+        save_config(config)
+        bot.reply_to(message, "开头关键词已清空，恢复默认设置")
+        logging.info(f"配置更新 - 用户 @{username} 清空开头关键词")
+        log_event(f"用户 @{username} 清空开头关键词")
+        return
+    
+    keywords = [kw.strip() for kw in input_text.split(',')]
     if len(keywords) > 5:
         bot.reply_to(message, "开头关键词数量不能超过 5 个！")
         return
@@ -240,7 +256,7 @@ def process_set_keyword_initial(message):
     config['keyword_initial'] = keywords
     save_config(config)
     bot.reply_to(message, f"开头关键词已设置为: {', '.join(keywords)}")
-    print(f"配置更新 - 用户 @{username} 设置开头关键词: {keywords}")
+    logging.info(f"配置更新 - 用户 @{username} 设置开头关键词: {keywords}")
     log_event(f"用户 @{username} 设置开头关键词: {keywords}")
 
 # 命令：/set_keyword_contain - 设置包含关键词（第一步）
@@ -255,9 +271,19 @@ def set_keyword_contain_command(message):
     bot.register_next_step_handler(message, process_set_keyword_contain)
 
 def process_set_keyword_contain(message):
-    """处理用户输入的包含关键词，覆盖旧配置"""
+    """处理用户输入的包含关键词，覆盖旧配置或清空列表"""
     username = message.from_user.username
-    keywords = [kw.strip() for kw in message.text.split(',')]
+    input_text = message.text.strip()  # 去除首尾空格
+    if not input_text or input_text.isspace():  # 如果只输入空格或空
+        config = load_config()
+        config['keyword_contain'] = []  # 清空列表，恢复默认
+        save_config(config)
+        bot.reply_to(message, "包含关键词已清空，恢复默认设置")
+        logging.info(f"配置更新 - 用户 @{username} 清空包含关键词")
+        log_event(f"用户 @{username} 清空包含关键词")
+        return
+    
+    keywords = [kw.strip() for kw in input_text.split(',')]
     if len(keywords) > 5:
         bot.reply_to(message, "包含关键词数量不能超过 5 个！")
         return
@@ -265,7 +291,7 @@ def process_set_keyword_contain(message):
     config['keyword_contain'] = keywords
     save_config(config)
     bot.reply_to(message, f"包含关键词已设置为: {', '.join(keywords)}")
-    print(f"配置更新 - 用户 @{username} 设置包含关键词: {keywords}")
+    logging.info(f"配置更新 - 用户 @{username} 设置包含关键词: {keywords}")
     log_event(f"用户 @{username} 设置包含关键词: {keywords}")
 
 # 命令：/set_sending_channel - 设置发送目标（第一步）
