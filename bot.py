@@ -7,29 +7,40 @@ import boto3
 import threading
 import time
 from dotenv import load_dotenv
+import logging
 
 # 设置中国时区（UTC+8）
 TZ = pytz.timezone('Asia/Shanghai')
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/var/log/msg-router-bot.log'),
+        logging.StreamHandler()
+    ]
+)
 
 # 加载 .env 文件
 load_dotenv()
 
 # 从环境变量读取配置
-BOT_TOKEN = os.getenv('BOT_TOKEN')  # Telegram Bot 的 Token
-S3_BUCKET = os.getenv('S3_BUCKET')  # S3 Bucket 名称
-SUPER_ADMINS_RAW = os.getenv('SUPER_ADMINS', '[]')  # 超级管理员列表
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+S3_BUCKET = os.getenv('S3_BUCKET')
+SUPER_ADMINS_RAW = os.getenv('SUPER_ADMINS', '[]')
 try:
     SUPER_ADMINS = json.loads(SUPER_ADMINS_RAW)
 except json.JSONDecodeError as e:
-    print(f"错误：SUPER_ADMINS 解析失败，格式错误: {e}")
+    logging.error(f"错误：SUPER_ADMINS 解析失败，格式错误: {e}")
     SUPER_ADMINS = []
 
-# 检查环境变量是否正确设置
+# 检查环境变量
 if not BOT_TOKEN:
-    print("错误：BOT_TOKEN 未设置，请检查 .env 文件或环境变量！")
+    logging.error("错误：BOT_TOKEN 未设置，请检查 .env 文件或环境变量！")
     exit(1)
 if not S3_BUCKET:
-    print("错误：S3_BUCKET 未设置，请检查 .env 文件或环境变量！")
+    logging.error("错误：S3_BUCKET 未设置，请检查 .env 文件或环境变量！")
     exit(1)
 
 # 初始化 S3 客户端
@@ -40,9 +51,9 @@ CONFIG_KEY = 'config.json'
 LOG_PREFIX = 'logs/'
 
 # 初始化 Telegram Bot
-print("Bot正在连接...")
+logging.info("Bot正在连接...")
 bot = telebot.TeleBot(BOT_TOKEN)
-print("Bot已连接，正在运行...")
+logging.info("Bot已连接，正在运行...")
 
 # 从 S3 加载配置
 def load_config():
@@ -400,5 +411,5 @@ if __name__ == '__main__':
     cleanup_thread = threading.Thread(target=log_cleanup_thread, daemon=True)
     cleanup_thread.start()
     clean_old_logs()
-    print("Bot初始化完成，开始监听消息...")
+    logging.info("Bot初始化完成，开始监听消息...")
     bot.polling(none_stop=True)
