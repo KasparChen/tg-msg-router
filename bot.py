@@ -6,6 +6,10 @@ import telebot
 import boto3
 import threading
 import time
+from dotenv import load_dotenv  # 新增导入
+
+# 加载 .env 文件
+load_dotenv()
 
 # 设置中国时区（UTC+8）
 TZ = pytz.timezone('Asia/Shanghai')
