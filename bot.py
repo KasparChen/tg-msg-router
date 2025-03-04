@@ -130,21 +130,21 @@ def is_admin(username):
 def help_command(message):
     """发送 Bot 使用指南"""
     help_text = (
-        "**MSG Router** 是一个消息处理 Bot，能够监听指定 Channel 中包含特定关键词的消息，并将其完整复制发送至指定的 Channel/Group。\n"
-        "关键词匹配无视大小写。\n\n"
-        "**使用指南：**\n"
-        "`/help` - 显示这个指南\n"
-        "`/status` - 查看当前 Bot 配置\n"
-        "`/get_group_id` - 获取当前群组的 ID（无需权限）\n"
-        "`/set_monitor_channel` - 设置要监控的频道 ID（目前只支持 1 个）\n"
-        "`/set_keyword_initial` - 设置抓取的句首关键词（用逗号分隔多个，最多 5 个）\n"
-        "`/set_keyword_contain` - 设置抓取的句中关键词（用逗号分隔多个，最多 5 个）\n"
-        "`/set_sending_channel` - 设置发送频道的 ID（最多 3 个）\n"
-        "`/add_admin` - 添加管理员\n"
-        "`/rm_admin` - 移除管理员"
+        "<b>MSG Router</b> 是一个消息处理 Bot，能够监听指定 Channel 中包含特定关键词的消息，并将其完整复制发送至指定的 Channel/Group。<br>"
+        "关键词匹配无视大小写。<br><br>"
+        "<b>使用指南：</b><br>"
+        "<b>/help</b> - 显示这个指南<br>"
+        "<b>/status</b> - 查看当前 Bot 配置<br>"
+        "<b>/get_group_id</b> - 获取当前群组的 ID（无需权限）<br>"
+        "<b>/set_monitor_channel</b> - 设置要监控的频道 ID（目前只支持 1 个）<br>"
+        "<b>/set_keyword_initial</b> - 设置抓取的句首关键词（用逗号分隔多个，最多 5 个）<br>"
+        "<b>/set_keyword_contain</b> - 设置抓取的句中关键词（用逗号分隔多个，最多 5 个）<br>"
+        "<b>/set_sending_channel</b> - 设置发送频道的 ID（最多 3 个）<br>"
+        "<b>/add_admin</b> - 添加管理员<br>"
+        "<b>/rm_admin</b> - 移除管理员"
         )
     bot.reply_to(message, help_text, parse_mode='Markdown')
-    log_event(f"用户 @{message.from_user.username} 执行 /help")
+    # log_event(f"用户 @{message.from_user.username} 执行 /help")
 
 # 命令：/status - 显示当前配置
 @bot.message_handler(commands=['status'])
@@ -173,14 +173,14 @@ def status_command(message):
             sending_channels_text.append(f"[{i}] 未知频道 ({channel_id})")
     sending_channels_text = "\n".join(sending_channels_text) if sending_channels_text else "未设置"
     status_text = (
-        f"**当前监控视野:**\n{monitor_channel_text}\n\n"
-        f"**关键词抓取配置:**\n"
-        f"**> 句首:** {keyword_initial_text}\n"
-        f"**> 句中:** {keyword_contain_text}\n\n"
-        f"**发送频道:**\n{sending_channels_text}"
+        f"<b>当前监控视野:</b>\n{monitor_channel_text}\n\n"
+        f"<b>关键词抓取配置:</b>\n"
+        f"<b>> 句首:</b> {keyword_initial_text}\n"
+        f"<b>> 句中:</b> {keyword_contain_text}\n\n"
+        f"<b>发送频道:</b>\n{sending_channels_text}"
         )
-    bot.reply_to(message, status_text, parse_mode='Markdown')
-    log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 发送频道={sending_channels_text}")
+    bot.reply_to(message, status_text, parse_mode='html')
+    # log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 发送频道={sending_channels_text}")
 
 # 命令：/get_group_id - 获取当前群组 ID
 @bot.message_handler(commands=['get_group_id'])
@@ -189,7 +189,7 @@ def get_group_id_command(message):
     group_id = message.chat.id
     username = message.from_user.username
     bot.reply_to(message, f"当前群组的ID是: {group_id}")
-    log_event(f"用户 @{username} 获取群组ID: {group_id}")
+    # log_event(f"用户 @{username} 获取群组ID: {group_id}")
 
 # 命令：/set_monitor_channel - 设置监控频道（第一步）
 @bot.message_handler(commands=['set_monitor_channel'])
