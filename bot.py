@@ -281,32 +281,43 @@ def process_set_keyword_contain(message):
 # 命令：/set_sending_channel - 设置发送目标（第一步）
 @bot.message_handler(commands=['set_sending_channel'])
 def set_sending_channel_command(message):
-    """提示用户提供发送目标频道 ID"""
+    """提示用户提供发送目标频道 ID，支持多个"""
     username = message.from_user.username
     if not is_admin(username):
         bot.reply_to(message, f"抱歉，你没有权限执行这个操作！你的用户名: @{username}")
         return
-    bot.reply_to(message, "请提供要添加的发送目标频道 ID\n（例如 -100987654321）")
+    bot.reply_to(message, "请提供发送目标频道 ID（用逗号分隔多个，例如 -100987654321, -100123456789，最多 3 个）")
     bot.register_next_step_handler(message, process_set_sending_channel)
 
 def process_set_sending_channel(message):
-    """处理用户输入的发送目标频道 ID"""
+    """处理用户输入的发送目标频道 ID，覆盖旧配置"""
     username = message.from_user.username
-    channel_id = message.text.strip()
-    try:
-        chat = bot.get_chat(channel_id)
-        config = load_config()
-        if len(config['sending_channels']) < 3:
-            config['sending_channels'].append(channel_id)
-            save_config(config)
-            bot.reply_to(message, f"{chat.title} ({channel_id}) 已添加为发送目标")
-            print(f"配置更新 - 用户 @{username} 添加发送目标: {channel_id}")
-            log_event(f"用户 @{username} 添加发送目标: {channel_id}, 当前发送频道列表: {config['sending_channels']}")
-        else:
-            bot.reply_to(message, "发送目标数量已达上限（3个）！")
-    except:
-        bot.reply_to(message, "无效的频道 ID，请确保输入正确并确保 Bot 有权限访问该频道！")
+    channel_ids = [cid.strip() for cid in message.text.split(',')]  # 分割并去除多余空格
+    if len(channel_ids) > 3:
+        bot.reply_to(message, "发送目标数量不能超过 3 个！")
+        return
 
+    # 验证每个频道 ID 是否有效
+    valid_channels = []
+    for channel_id in channel_ids:
+        try:
+            chat = bot.get_chat(channel_id)
+            valid_channels.append((channel_id, chat.title))
+        except:
+            bot.reply_to(message, f"无效的频道 ID: {channel_id}，请确保输入正确并确保 Bot 有权限访问该频道！")
+            return
+
+    # 覆盖旧配置
+    config = load_config()
+    config['sending_channels'] = [cid for cid, _ in valid_channels]  # 只保存 ID
+    save_config(config)
+    
+    # 生成确认消息
+    channel_list = "\n".join([f"{chat_title} ({chat_id})" for chat_id, chat_title in valid_channels])
+    bot.reply_to(message, f"发送目标已设置为:\n{channel_list}")
+    logging.info(f"配置更新 - 用户 @{username} 设置发送目标: {config['sending_channels']}")
+    log_event(f"用户 @{username} 设置发送目标: {config['sending_channels']}")
+    
 # 命令：/add_admin - 添加管理员（第一步）
 @bot.message_handler(commands=['add_admin'])
 def add_admin_command(message):
