@@ -143,7 +143,7 @@ def help_command(message):
         "<b>/add_admin</b> - 添加管理员<br>"
         "<b>/rm_admin</b> - 移除管理员"
         )
-    bot.reply_to(message, help_text, parse_mode='Markdown')
+    bot.reply_to(message, help_text, parse_mode='HTML')
     # log_event(f"用户 @{message.from_user.username} 执行 /help")
 
 # 命令：/status - 显示当前配置
@@ -179,7 +179,7 @@ def status_command(message):
         f"<b>> 句中:</b> {keyword_contain_text}\n\n"
         f"<b>发送频道:</b>\n{sending_channels_text}"
         )
-    bot.reply_to(message, status_text, parse_mode='html')
+    bot.reply_to(message, status_text, parse_mode='HTML')
     # log_event(f"用户 @{username} 查看状态: 监控频道={monitor_channel_text}, 句首关键词={keyword_initial_text}, 句中关键词={keyword_contain_text}, 发送频道={sending_channels_text}")
 
 # 命令：/get_group_id - 获取当前群组 ID
